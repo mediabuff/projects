@@ -11,6 +11,7 @@
 # Build results
 x64/
 x86/
+Win32/
 
 # Visual C++ cache files
 *.aps
