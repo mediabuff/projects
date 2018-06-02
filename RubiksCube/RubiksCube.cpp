@@ -5,19 +5,19 @@
 #include <unordered_map>
 #include "MainDlg.h"
 
-//#define WITH_TREES
-
 const int MAX_LEVELS = 8;
 const int NUM_CHILDREN = 12;
 
 typedef unsigned long long uint64;
 
-const char COLOR_R = 'r';
-const char COLOR_B = 'b';
-const char COLOR_W = 'w';
-const char COLOR_G = 'g';
-const char COLOR_Y = 'y';
-const char COLOR_O = 'o';
+// When using trees we store the cube states as characters
+// When using the map we store them as integers (0-5) for easier hashing
+const unsigned char COLOR_R = 0;
+const unsigned char COLOR_B = 1;
+const unsigned char COLOR_W = 2;
+const unsigned char COLOR_G = 3;
+const unsigned char COLOR_Y = 4;
+const unsigned char COLOR_O = 5;
 
 class Node
 {
@@ -47,10 +47,10 @@ public:
 	std::string getMoves() const
 	{
 		std::string moves;
-		for (const char *p = m_moves; *p; p++)
+		for (int t = 0; t < MAX_LEVELS && m_moves[t] != 0; t++)
 		{
 			const char *move = nullptr;
-			switch (*p)
+			switch (m_moves[t])
 			{
 			case 'u':
 				move = "Up\r\n";
@@ -104,164 +104,98 @@ class TreeNode
 
 private:
 	char m_squares[24];
-	TreeNode *m_pChildren;
+	TreeNode *m_children;
 
 public:
-	TreeNode(const char *squares)
-		: m_pChildren(nullptr)
+	TreeNode(const char squares[])
+		: m_children(nullptr)
 	{
-		//NumConstruct++;
 		memcpy(m_squares, squares, sizeof(m_squares));
 	}
 
 	~TreeNode()
 	{
-		//NumDestruct++;
-		delete[] m_pChildren;
+		delete[] m_children;
 	}
 
 	void buildTopTree()
 	{
-		buildChildrenForTopTree(nullptr, nullptr, 0, 1);
-	}
-
-	void buildBottomTree()
-	{
-		buildChildrenForBottomTree(nullptr, nullptr, 0, 1);
+		buildChildrenForTopTree(*this, nullptr, 0, 1);
 	}
 
 	BottomMap *buildBottomMap()
 	{
-		BottomMap *pMap = new BottomMap;
-		buildChildrenForBottomMap(pMap, nullptr, nullptr, 0, 1);
-		return pMap;
-	}
-
-	std::string getSquares() const
-	{
-		return std::string(m_squares, sizeof(m_squares));
+		BottomMap *map = new BottomMap;
+		buildChildrenForBottomMap(*map, *this, nullptr, 0, 1);
+		return map;
 	}
 
 	uint64 getSquareHash() const
 	{
 		uint64 hash = 0;
-		const char *s = m_squares;
+		const unsigned char *s = reinterpret_cast<const unsigned char *>(m_squares);
 		for (int t = 0; t < sizeof(m_squares); t++, s++)
 		{
 			hash = hash * 6;
-			switch (*s)
-			{
-			case COLOR_R:
-				break;
-			case COLOR_B:
-				hash += 1;
-				break;
-			case COLOR_W:
-				hash += 2;
-				break;
-			case COLOR_G:
-				hash += 3;
-				break;
-			case COLOR_Y:
-				hash += 4;
-				break;
-			case COLOR_O:
-				hash += 5;
-				break;
-			}
+			hash += *s;
 		}
 		return hash;
 	}
 
 	TreeNode *getChild(int index) const
 	{
-		return m_pChildren ? m_pChildren + index : nullptr;
-	}
-
-	bool equals(const TreeNode *t) const
-	{
-		return memcmp(m_squares, t->m_squares, sizeof(m_squares)) == 0;
+		return m_children ? m_children + index : nullptr;
 	}
 
 private:
 	TreeNode()
-		: m_pChildren(nullptr)
+		: m_children(nullptr)
 	{
-		//NumConstruct++;
 	}
 
-	void buildChildrenForTopTree(const TreeNode *pParent, void (TreeNode::*pTransform)(const TreeNode &), char move, int level)
+	void buildChildrenForTopTree(const TreeNode &parent, void (TreeNode::*pTransform)(const TreeNode &), char move, int level)
 	{
 		// Build the current node's moves & squares (from the parent's)
 		if (level > 1)
 		{
-			(*this.*pTransform)(*pParent);
-			copyMoves(*pParent);
+			(*this.*pTransform)(parent);
+			copyMoves(parent);
 			m_moves[level - 2] = move;
 		}
 
 		if (level < MAX_LEVELS)
 		{
-			m_pChildren = new TreeNode[NUM_CHILDREN];
+			m_children = new TreeNode[NUM_CHILDREN];
 
-			m_pChildren[0].buildChildrenForTopTree(this, &TreeNode::up, 'u'/*"Up\n"*/, level + 1);
-			m_pChildren[1].buildChildrenForTopTree(this, &TreeNode::upInverted, 'U'/*"Up'\n"*/, level + 1);
-			m_pChildren[2].buildChildrenForTopTree(this, &TreeNode::down, 'd'/*"Down\n"*/, level + 1);
-			m_pChildren[3].buildChildrenForTopTree(this, &TreeNode::downInverted, 'D'/*"Down'\n"*/, level + 1);
-			m_pChildren[4].buildChildrenForTopTree(this, &TreeNode::right, 'r'/*"Right\n"*/, level + 1);
-			m_pChildren[5].buildChildrenForTopTree(this, &TreeNode::rightInverted, 'R'/*"Right'\n"*/, level + 1);
-			m_pChildren[6].buildChildrenForTopTree(this, &TreeNode::left, 'l'/*"Left\n"*/, level + 1);
-			m_pChildren[7].buildChildrenForTopTree(this, &TreeNode::leftInverted, 'L'/*"Left'\n"*/, level + 1);
-			m_pChildren[8].buildChildrenForTopTree(this, &TreeNode::front, 'f'/*"Front\n"*/, level + 1);
-			m_pChildren[9].buildChildrenForTopTree(this, &TreeNode::frontInverted, 'F'/*"Front'\n"*/, level + 1);
-			m_pChildren[10].buildChildrenForTopTree(this, &TreeNode::back, 'b'/*"Back\n"*/, level + 1);
-			m_pChildren[11].buildChildrenForTopTree(this, &TreeNode::backInverted, 'B'/*"Back'\n"*/, level + 1);
+			m_children[0].buildChildrenForTopTree(*this, &TreeNode::up, 'u'/*"Up\n"*/, level + 1);
+			m_children[1].buildChildrenForTopTree(*this, &TreeNode::upInverted, 'U'/*"Up'\n"*/, level + 1);
+			m_children[2].buildChildrenForTopTree(*this, &TreeNode::down, 'd'/*"Down\n"*/, level + 1);
+			m_children[3].buildChildrenForTopTree(*this, &TreeNode::downInverted, 'D'/*"Down'\n"*/, level + 1);
+			m_children[4].buildChildrenForTopTree(*this, &TreeNode::right, 'r'/*"Right\n"*/, level + 1);
+			m_children[5].buildChildrenForTopTree(*this, &TreeNode::rightInverted, 'R'/*"Right'\n"*/, level + 1);
+			m_children[6].buildChildrenForTopTree(*this, &TreeNode::left, 'l'/*"Left\n"*/, level + 1);
+			m_children[7].buildChildrenForTopTree(*this, &TreeNode::leftInverted, 'L'/*"Left'\n"*/, level + 1);
+			m_children[8].buildChildrenForTopTree(*this, &TreeNode::front, 'f'/*"Front\n"*/, level + 1);
+			m_children[9].buildChildrenForTopTree(*this, &TreeNode::frontInverted, 'F'/*"Front'\n"*/, level + 1);
+			m_children[10].buildChildrenForTopTree(*this, &TreeNode::back, 'b'/*"Back\n"*/, level + 1);
+			m_children[11].buildChildrenForTopTree(*this, &TreeNode::backInverted, 'B'/*"Back'\n"*/, level + 1);
 		}
 	}
 
-	void buildChildrenForBottomTree(const TreeNode *pParent, void (TreeNode::*pTransform)(const TreeNode &), char move, int level)
+	void buildChildrenForBottomMap(BottomMap &map, const TreeNode &parent, void (TreeNode::*pTransform)(const TreeNode &), char move, int level)
 	{
 		// Build the current node's moves & squares (from the parent's)
 		if (level > 1)
 		{
-			(*this.*pTransform)(*pParent);
-			copyMoves(*pParent);
+			(*this.*pTransform)(parent);
+			copyMoves(parent);
 			memmove(m_moves + 1, m_moves, level - 1);
 			m_moves[0] = move;
 		}
-
-		if (level < MAX_LEVELS)
-		{
-			m_pChildren = new TreeNode[NUM_CHILDREN];
-
-			m_pChildren[0].buildChildrenForBottomTree(this, &TreeNode::up, 'U'/*"Up'"*/, level + 1);
-			m_pChildren[1].buildChildrenForBottomTree(this, &TreeNode::upInverted, 'u'/*"Up"*/, level + 1);
-			m_pChildren[2].buildChildrenForBottomTree(this, &TreeNode::down, 'D'/*"Down'"*/, level + 1);
-			m_pChildren[3].buildChildrenForBottomTree(this, &TreeNode::downInverted, 'd'/*"Down\n"*/, level + 1);
-			m_pChildren[4].buildChildrenForBottomTree(this, &TreeNode::right, 'R'/*"Right'\n"*/, level + 1);
-			m_pChildren[5].buildChildrenForBottomTree(this, &TreeNode::rightInverted, 'r'/*"Right\n"*/, level + 1);
-			m_pChildren[6].buildChildrenForBottomTree(this, &TreeNode::left, 'L'/*"Left'\n"*/, level + 1);
-			m_pChildren[7].buildChildrenForBottomTree(this, &TreeNode::leftInverted, 'l'/*"Left\n"*/, level + 1);
-			m_pChildren[8].buildChildrenForBottomTree(this, &TreeNode::front, 'F'/*"Front'\n"*/, level + 1);
-			m_pChildren[9].buildChildrenForBottomTree(this, &TreeNode::frontInverted, 'f'/*"Front\n"*/, level + 1);
-			m_pChildren[10].buildChildrenForBottomTree(this, &TreeNode::back, 'B'/*"Back'\n"*/, level + 1);
-			m_pChildren[11].buildChildrenForBottomTree(this, &TreeNode::backInverted, 'b'/*"Back\n"*/, level + 1);
-		}
-	}
-
-	void buildChildrenForBottomMap(BottomMap *pMap, const TreeNode *pParent, void (TreeNode::*pTransform)(const TreeNode &), char move, int level)
-	{
-		// Build the current node's moves & squares (from the parent's)
-		if (level > 1)
-		{
-			(*this.*pTransform)(*pParent);
-			copyMoves(*pParent);
-			memmove(m_moves + 1, m_moves, level - 1);
-			m_moves[0] = move;
-		}
-		auto emplaceResult = pMap->try_emplace(getSquareHash(), *this);
+		auto emplaceResult = map.try_emplace(this->getSquareHash(), *this);
 		if (!emplaceResult.second)
 		{
+			// There was a collision, replace the existing value in the map only if the current value has fewer moves
 			if (this->movesLength() < emplaceResult.first->second.movesLength())
 			{
 				emplaceResult.first->second = *this;
@@ -272,18 +206,18 @@ private:
 		{
 			TreeNode child;
 
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::up, 'U'/*"Up'"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::upInverted, 'u'/*"Up"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::down, 'D'/*"Down'"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::downInverted, 'd'/*"Down\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::right, 'R'/*"Right'\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::rightInverted, 'r'/*"Right\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::left, 'L'/*"Left'\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::leftInverted, 'l'/*"Left\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::front, 'F'/*"Front'\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::frontInverted, 'f'/*"Front\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::back, 'B'/*"Back'\n"*/, level + 1);
-			child.buildChildrenForBottomMap(pMap, this, &TreeNode::backInverted, 'b'/*"Back\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::up, 'U'/*"Up'"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::upInverted, 'u'/*"Up"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::down, 'D'/*"Down'"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::downInverted, 'd'/*"Down\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::right, 'R'/*"Right'\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::rightInverted, 'r'/*"Right\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::left, 'L'/*"Left'\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::leftInverted, 'l'/*"Left\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::front, 'F'/*"Front'\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::frontInverted, 'f'/*"Front\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::back, 'B'/*"Back'\n"*/, level + 1);
+			child.buildChildrenForBottomMap(map, *this, &TreeNode::backInverted, 'b'/*"Back\n"*/, level + 1);
 		}
 	}
 
@@ -600,7 +534,7 @@ static char solved[24] =
 
 static TreeNode *top;
 static TreeNode *bottom;
-static BottomMap *pBottomMap;
+static BottomMap *bottomMap;
 
 static std::string traverse();
 static bool traverse2(TreeNode *comp, Node *found);
@@ -609,26 +543,18 @@ static void solve(const char *start)
 {
 	top = new TreeNode(start);
 	top->buildTopTree();
-	//write_line("NumConstructed = %d", NumConstruct);
 	bottom = new TreeNode(solved);
-#ifdef WITH_TREES
-	bottom->buildBottomTree();
-#else
-	pBottomMap = bottom->buildBottomMap();
-#endif
-	//write_line("NumConstructed = %d", NumConstruct);
+	bottomMap = bottom->buildBottomMap();
 	write_line("Trees constructed");
 
 	write_line(traverse().c_str());
 
-	delete pBottomMap;
-	pBottomMap = nullptr;
+	delete bottomMap;
+	bottomMap = nullptr;
 	delete top;
 	top = nullptr;
-	//write_line("NumDestructed = %d", NumDestruct);
 	delete bottom;
 	bottom = nullptr;
-	//write_line("NumDestructed = %d", NumDestruct);
 }
 
 static std::string traverse()
@@ -662,41 +588,41 @@ static std::string traverse()
 
 static bool traverse2(TreeNode *comp, Node *found)
 {
-#ifdef WITH_TREES
-	TreeNode *current;
-
-	auto queue = std::queue<TreeNode *>();
-	queue.push(bottom);
-
-	while (!queue.empty())
-	{
-		current = queue.front();
-		queue.pop();
-		if (current->equals(comp))
-		{
-			*found = *current;
-			return true;
-		}
-
-		if (current->getChild(0) != nullptr)
-		{
-			for (int i = 0; i < 12; i++)
-			{
-				queue.push(current->getChild(i));
-			}
-		}
-	}
-
-	return false;
-#else
-	auto it = pBottomMap->find(comp->getSquareHash());
-	if (it == pBottomMap->end())
+	auto it = bottomMap->find(comp->getSquareHash());
+	if (it == bottomMap->end())
 	{
 		return false;
 	}
 	*found = it->second;
 	return true;
-#endif
+}
+
+static void translate(char squares[])
+{
+	for (int t = 0; t < 24; t++)
+	{
+		switch (squares[t])
+		{
+		case 'r':
+			squares[t] = COLOR_R;
+			break;
+		case 'b':
+			squares[t] = COLOR_B;
+			break;
+		case 'w':
+			squares[t] = COLOR_W;
+			break;
+		case 'g':
+			squares[t] = COLOR_G;
+			break;
+		case 'y':
+			squares[t] = COLOR_Y;
+			break;
+		case 'o':
+			squares[t] = COLOR_O;
+			break;
+		}
+	}
 }
 
 // Testcase: rrrrwwbbggwwyyggbbyyoooo
@@ -716,7 +642,7 @@ static bool traverse2(TreeNode *comp, Node *found)
 // Solution: Left', Down, Back', Right, Front', Right', Up [MaxLevel=8]
 // (the Java version [MaxLevel unknown] had a different solution, we checked that both were same # moves & both worked)
 
-void start(const char *cubeState)
+void start(const char cubeState[])
 {
 	char squares[24];
 
@@ -733,6 +659,7 @@ void start(const char *cubeState)
 		}
 		squares[t] = c;
 	}
+	translate(squares);
 
 	solve(squares);
 }

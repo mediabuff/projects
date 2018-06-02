@@ -6,7 +6,7 @@
 
 const UINT THREAD_DONE = WM_APP;
 
-extern void start(const char *cubeState);
+extern void start(const char cubeState[]);
 
 static HINSTANCE g_hInstance;
 static HWND g_hMainDlg;
