@@ -3,6 +3,7 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include "MainDlg.h"
 
 //#define WITH_TREES
 
@@ -45,49 +46,58 @@ public:
 		memcpy(m_moves, parent.m_moves, sizeof(m_moves));
 	}
 
+	size_t movesLength() const
+	{
+		if (m_moves[MAX_LEVELS - 1] != 0)
+		{
+			return MAX_LEVELS;
+		}
+		return strlen(m_moves);
+	}
+
 	std::string getMoves() const
 	{
 		std::string moves;
 		for (const char *p = m_moves; *p; p++)
 		{
-			const char *move;
+			const char *move = nullptr;
 			switch (*p)
 			{
 			case 'u':
-				move = "Up\n";
+				move = "Up\r\n";
 				break;
 			case 'U':
-				move = "Up'\n";
+				move = "Up'\r\n";
 				break;
 			case 'd':
-				move = "Down\n";
+				move = "Down\r\n";
 				break;
 			case 'D':
-				move = "Down'\n";
+				move = "Down'\r\n";
 				break;
 			case 'r':
-				move = "Right\n";
+				move = "Right\r\n";
 				break;
 			case 'R':
-				move = "Right'\n";
+				move = "Right'\r\n";
 				break;
 			case 'l':
-				move = "Left\n";
+				move = "Left\r\n";
 				break;
 			case 'L':
-				move = "Left'\n";
+				move = "Left'\r\n";
 				break;
 			case 'f':
-				move = "Front\n";
+				move = "Front\r\n";
 				break;
 			case 'F':
-				move = "Front'\n";
+				move = "Front'\r\n";
 				break;
 			case 'b':
-				move = "Back\n";
+				move = "Back\r\n";
 				break;
 			case 'B':
-				move = "Back'\n";
+				move = "Back'\r\n";
 				break;
 			}
 			moves += move;
@@ -241,10 +251,14 @@ private:
 			memmove(m_moves + 1, m_moves, level - 1);
 			m_moves[0] = move;
 		}
-		pMap->try_emplace(getSquareHash(), *this);
-		//if (!emplaceResult.second)
-		//{
-		//}
+		auto emplaceResult = pMap->try_emplace(getSquareHash(), *this);
+		if (!emplaceResult.second)
+		{
+			if (this->movesLength() < emplaceResult.first->second.movesLength())
+			{
+				emplaceResult.first->second = *this;
+			}
+		}
 
 		if (level < MAX_LEVELS)
 		{
@@ -580,36 +594,36 @@ static TreeNode *top;
 static TreeNode *bottom;
 static BottomMap *pBottomMap;
 
-std::string traverse();
-bool traverse2(TreeNode *comp, Node *found);
+static std::string traverse();
+static bool traverse2(TreeNode *comp, Node *found);
 
-void solve(const char *start)
+static void solve(const char *start)
 {
 	top = new TreeNode(start);
 	top->buildTopTree();
-	//printf("NumConstructed = %d\n", NumConstruct);
+	//write_line("NumConstructed = %d", NumConstruct);
 	bottom = new TreeNode(solved);
 #ifdef WITH_TREES
 	bottom->buildBottomTree();
 #else
 	pBottomMap = bottom->buildBottomMap();
 #endif
-	//printf("NumConstructed = %d\n", NumConstruct);
-	printf("Trees constructed\n");
+	//write_line("NumConstructed = %d", NumConstruct);
+	write_line("Trees constructed");
 
-	printf(traverse().c_str());
+	write_line(traverse().c_str());
 
 	delete pBottomMap;
 	pBottomMap = nullptr;
 	delete top;
 	top = nullptr;
-	//printf("NumDestructed = %d\n", NumDestruct);
+	//write_line("NumDestructed = %d", NumDestruct);
 	delete bottom;
 	bottom = nullptr;
-	//printf("NumDestructed = %d\n", NumDestruct);
+	//write_line("NumDestructed = %d", NumDestruct);
 }
 
-std::string traverse()
+static std::string traverse()
 {
 	TreeNode *current;
 	Node t2;
@@ -623,7 +637,7 @@ std::string traverse()
 		queue.pop();
 		if (traverse2(current, &t2))
 		{
-			return "START\n" + current->getMoves() + t2.getMoves() + "END\n";
+			return "START\r\n" + current->getMoves() + t2.getMoves() + "END";
 		}
 
 		if (current->getChild(0) != nullptr)
@@ -635,10 +649,10 @@ std::string traverse()
 		}
 	}
 
-	return "No path found\n";
+	return "No path found";
 }
 
-bool traverse2(TreeNode *comp, Node *found)
+static bool traverse2(TreeNode *comp, Node *found)
 {
 #ifdef WITH_TREES
 	TreeNode *current;
@@ -677,7 +691,7 @@ bool traverse2(TreeNode *comp, Node *found)
 #endif
 }
 
-void translate(char *squares)
+static void translate(char *squares)
 {
 #ifndef WITH_TREES
 	unsigned char *s = reinterpret_cast<unsigned char *>(squares);
@@ -717,6 +731,7 @@ void translate(char *squares)
 // Testcase: yrbwbwrorgborywoboggwgyy
 // Solution: Up', Front', Down', Right' [MaxLevel=3]
 // Solution: Down', Left', Up', Right' [MaxLevel=8]
+//           (note, for this one you get a different result if the map is built strictly depth first)
 
 // Testcase: ywgroryowbbowoygggrbwbry
 // Solution: Right, Right, Front, Down, Left', Back, Left' [MaxLevel=5]
@@ -724,36 +739,24 @@ void translate(char *squares)
 // Solution: Left', Down, Back', Right, Front', Right', Up [MaxLevel=8]
 // (the Java version [MaxLevel unknown] had a different solution, we checked that both were same # moves & both worked)
 
-int main(int argc, char *argv[])
+void start(const char *cubeState)
 {
 	char squares[24];
 
-	if (argc == 2)
+	if (strlen(cubeState) != 24)
 	{
-		if (strlen(argv[1]) != 24)
-		{
-			printf("Error, the cube state must be 24 characters of colors: rbwgyo\n");
-			return 1;
-		}
-		for (int t = 0; t < 24; t++)
-		{
-			char c = argv[1][t];
-			if (c != 'r' && c != 'b' && c != 'w' && c != 'g' && c != 'y' && c != 'o')
-			{
-				printf("Error, the cube state must be 24 characters of colors: rbwgyo\n");
-				return 1;
-			}
-			squares[t] = c;
-		}
-		translate(squares);
+		write_line("Error, the cube state must be 24 characters of colors: rbwgyo");
 	}
-	else
+	for (int t = 0; t < 24; t++)
 	{
-		printf("Solving a solved cube\n");
-		memcpy(squares, solved, sizeof(solved));
+		char c = cubeState[t];
+		if (c != 'r' && c != 'b' && c != 'w' && c != 'g' && c != 'y' && c != 'o')
+		{
+			write_line("Error, the cube state must be 24 characters of colors: rbwgyo");
+		}
+		squares[t] = c;
 	}
+	translate(squares);
 
 	solve(squares);
-
-	return 0;
 }
