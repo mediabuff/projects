@@ -12,23 +12,12 @@ const int NUM_CHILDREN = 12;
 
 typedef unsigned long long uint64;
 
-// When using trees we store the cube states as characters
-// When using the map we store them as integers (0-5) for easier hashing
-#ifdef WITH_TREES
 const char COLOR_R = 'r';
 const char COLOR_B = 'b';
 const char COLOR_W = 'w';
 const char COLOR_G = 'g';
 const char COLOR_Y = 'y';
 const char COLOR_O = 'o';
-#else
-const unsigned char COLOR_R = 0;
-const unsigned char COLOR_B = 1;
-const unsigned char COLOR_W = 2;
-const unsigned char COLOR_G = 3;
-const unsigned char COLOR_Y = 4;
-const unsigned char COLOR_O = 5;
-#endif
 
 class Node
 {
@@ -156,11 +145,30 @@ public:
 	uint64 getSquareHash() const
 	{
 		uint64 hash = 0;
-		const unsigned char *s = reinterpret_cast<const unsigned char *>(m_squares);
+		const char *s = m_squares;
 		for (int t = 0; t < sizeof(m_squares); t++, s++)
 		{
 			hash = hash * 6;
-			hash += *s;
+			switch (*s)
+			{
+			case COLOR_R:
+				break;
+			case COLOR_B:
+				hash += 1;
+				break;
+			case COLOR_W:
+				hash += 2;
+				break;
+			case COLOR_G:
+				hash += 3;
+				break;
+			case COLOR_Y:
+				hash += 4;
+				break;
+			case COLOR_O:
+				hash += 5;
+				break;
+			}
 		}
 		return hash;
 	}
@@ -691,37 +699,6 @@ static bool traverse2(TreeNode *comp, Node *found)
 #endif
 }
 
-static void translate(char *squares)
-{
-#ifndef WITH_TREES
-	unsigned char *s = reinterpret_cast<unsigned char *>(squares);
-	for (int t = 0; t < 24; t++, s++)
-	{
-		switch (*s)
-		{
-		case 'r':
-			*s = COLOR_R;
-			break;
-		case 'b':
-			*s = COLOR_B;
-			break;
-		case 'w':
-			*s = COLOR_W;
-			break;
-		case 'g':
-			*s = COLOR_G;
-			break;
-		case 'y':
-			*s = COLOR_Y;
-			break;
-		case 'o':
-			*s = COLOR_O;
-			break;
-		}
-	}
-#endif
-}
-
 // Testcase: rrrrwwbbggwwyyggbbyyoooo
 // Solution Up'
 
@@ -756,7 +733,6 @@ void start(const char *cubeState)
 		}
 		squares[t] = c;
 	}
-	translate(squares);
 
 	solve(squares);
 }
