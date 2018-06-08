@@ -33,7 +33,7 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR /*
     int nRet = 0;
     {
         CMainDlg dlgMain;
-        nRet = dlgMain.DoModal();
+        dlgMain.DoModal();
     }
 
     _Module.Term();
