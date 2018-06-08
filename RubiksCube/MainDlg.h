@@ -20,7 +20,7 @@ public:
 
     CMainDlg();
 
-    static void write_line(const char *message);
+    static void WriteLine(const char *message);
 
     BEGIN_MSG_MAP(CMainDlg)
         MSG_WM_INITDIALOG(OnInitDialog)
@@ -39,4 +39,8 @@ public:
     LRESULT OnStart(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
     LRESULT OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
     LRESULT OnThreadDone(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+
+private:
+    static CWindow s_MainDlg;
+    static std::thread *s_pThread;
 };

@@ -8,9 +8,8 @@
 /* ------------------------------- TypeDefs -------------------------------- */
 /* -------------------------------- Classes -------------------------------- */
 /* ---------------------------- Static Variables --------------------------- */
-static HINSTANCE g_hInstance;
-static HWND g_hMainDlg;
-static std::thread *pThread;
+CWindow CMainDlg::s_MainDlg;
+std::thread *CMainDlg::s_pThread;
 
 /* ---------------------------- Global Variables --------------------------- */
 /* ------------------------------- Prototypes ------------------------------ */
@@ -27,27 +26,22 @@ CMainDlg::CMainDlg()
 {
 }
 
-void CMainDlg::write_line(const char *message)
+void CMainDlg::WriteLine(const char *message)
 {
-    HWND hControl = ::GetDlgItem(g_hMainDlg, IDC_OUTPUT);
-    auto length = ::SendMessageA(hControl, WM_GETTEXTLENGTH, 0, 0);
-    std::string outputText;
-    if (length > 0)
+    CEdit outputEdit = s_MainDlg.GetDlgItem(IDC_OUTPUT);
+    CString outputText;
+    outputEdit.GetWindowTextA(outputText);
+    if (outputText.GetLength() > 0)
     {
-        char *buff = reinterpret_cast<char *>(alloca(length + 2 + 1));
-        ::SendMessageA(hControl, WM_GETTEXT, length + 1, reinterpret_cast<LPARAM>(buff));
-        buff[length] = '\r';
-        buff[length + 1] = '\n';
-        buff[length + 2] = 0;
-        outputText = buff;
+        outputText.Append("\r\n");
     }
-    outputText += message;
-    ::SendMessageA(hControl, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(outputText.c_str()));
+    outputText.Append(message);
+    outputEdit.SetWindowTextA(outputText);
 }
 
 BOOL CMainDlg::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 {
-    g_hMainDlg = m_hWnd;
+    s_MainDlg = *this;
     // center the dialog on the screen
     CenterWindow();
 
@@ -67,7 +61,7 @@ BOOL CMainDlg::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 
 LRESULT CMainDlg::OnStart(WORD /*wNotifyCode*/, WORD /*wID*/, HWND hWndCtl, BOOL& /*bHandled*/)
 {
-    if (pThread == nullptr)
+    if (s_pThread == nullptr)
     {
         CButton startButton(hWndCtl);
         startButton.EnableWindow(FALSE);
@@ -75,10 +69,10 @@ LRESULT CMainDlg::OnStart(WORD /*wNotifyCode*/, WORD /*wID*/, HWND hWndCtl, BOOL
         static char cubeState[24 + 1];
         CEdit cubeStateEdit = GetDlgItem(IDC_CUBESTATE_EDIT);
         cubeStateEdit.GetWindowTextA(cubeState, sizeof(cubeState));
-        pThread = new std::thread(/*start_wrapper*/[](const char *_cubeState)
+        s_pThread = new std::thread(/*start_wrapper*/[](const char *_cubeState)
         {
             start(_cubeState);
-            ::PostMessage(g_hMainDlg, WM_THREAD_DONE, 0, 0);
+            s_MainDlg.PostMessage(WM_THREAD_DONE);
         }, cubeState);
     }
     return 0;
@@ -92,9 +86,9 @@ LRESULT CMainDlg::OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOO
 
 LRESULT CMainDlg::OnThreadDone(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-    pThread->join();
-    delete pThread;
-    pThread = nullptr;
+    s_pThread->join();
+    delete s_pThread;
+    s_pThread = nullptr;
     CButton startButton = GetDlgItem(IDC_START_BTN);
     startButton.EnableWindow();
     return 0;
