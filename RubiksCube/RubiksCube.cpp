@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "Resource.h"
 
 #include <queue>
 #include <string>
@@ -545,9 +546,9 @@ static void solve(const char *start)
     top->buildTopTree();
     bottom = new TreeNode(solved);
     bottomMap = bottom->buildBottomMap();
-    write_line("Trees constructed");
+    CMainDlg::write_line("Trees constructed");
 
-    write_line(traverse().c_str());
+    CMainDlg::write_line(traverse().c_str());
 
     delete bottomMap;
     bottomMap = nullptr;
@@ -648,14 +649,14 @@ void start(const char cubeState[])
 
     if (strlen(cubeState) != 24)
     {
-        write_line("Error, the cube state must be 24 characters of colors: rbwgyo");
+        CMainDlg::write_line("Error, the cube state must be 24 characters of colors: rbwgyo");
     }
     for (int t = 0; t < 24; t++)
     {
         char c = cubeState[t];
         if (c != 'r' && c != 'b' && c != 'w' && c != 'g' && c != 'y' && c != 'o')
         {
-            write_line("Error, the cube state must be 24 characters of colors: rbwgyo");
+            CMainDlg::write_line("Error, the cube state must be 24 characters of colors: rbwgyo");
         }
         squares[t] = c;
     }

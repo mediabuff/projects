@@ -1,17 +1,33 @@
+/* ------------------------------- Includes -------------------------------- */
 #include "stdafx.h"
-
-#include <string>
-#include <thread>
 #include "Resource.h"
 
-const UINT THREAD_DONE = WM_APP;
+#include "MainDlg.h"
 
-extern void start(const char cubeState[]);
-
+/* -------------------------------- Macros --------------------------------- */
+/* ------------------------------- TypeDefs -------------------------------- */
+/* -------------------------------- Classes -------------------------------- */
+/* ---------------------------- Static Variables --------------------------- */
 static HINSTANCE g_hInstance;
 static HWND g_hMainDlg;
+static std::thread *pThread;
 
-void write_line(const char *message)
+/* ---------------------------- Global Variables --------------------------- */
+/* ------------------------------- Prototypes ------------------------------ */
+extern void start(const char cubeState[]);
+
+/* ---------------------------- Static Functions --------------------------- */
+
+/******************************************************************************
+*
+* Class CMainDlg implementation
+*
+*****************************************************************************/
+CMainDlg::CMainDlg()
+{
+}
+
+void CMainDlg::write_line(const char *message)
 {
     HWND hControl = ::GetDlgItem(g_hMainDlg, IDC_OUTPUT);
     auto length = ::SendMessageA(hControl, WM_GETTEXTLENGTH, 0, 0);
@@ -29,90 +45,57 @@ void write_line(const char *message)
     ::SendMessageA(hControl, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(outputText.c_str()));
 }
 
-static void start_wrapper(const char *cubeState)
+BOOL CMainDlg::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 {
-    start(cubeState);
-    PostMessage(g_hMainDlg, THREAD_DONE, 0, 0);
+    g_hMainDlg = m_hWnd;
+    // center the dialog on the screen
+    CenterWindow();
+
+    // set icons
+    HICON hIcon = (HICON)::LoadImage(_Module.GetResourceInstance(), MAKEINTRESOURCE(IDI_RUBIKS_CUBE),
+        IMAGE_ICON, ::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR);
+    SetIcon(hIcon, TRUE);
+    HICON hIconSmall = (HICON)::LoadImage(_Module.GetResourceInstance(), MAKEINTRESOURCE(IDI_RUBIKS_CUBE),
+        IMAGE_ICON, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
+    SetIcon(hIconSmall, FALSE);
+
+    CEdit cubeStateEdit = GetDlgItem(IDC_CUBESTATE_EDIT);
+    cubeStateEdit.LimitText(24);
+    cubeStateEdit.SetWindowTextA("rrrrbbbbwwwwggggyyyyoooo");
+    return TRUE;
 }
 
-static void center_window(HWND hWnd)
+LRESULT CMainDlg::OnStart(WORD /*wNotifyCode*/, WORD /*wID*/, HWND hWndCtl, BOOL& /*bHandled*/)
 {
-    WINDOWINFO winInfo;
-    winInfo.cbSize = sizeof(winInfo);
-    ::GetWindowInfo(hWnd, &winInfo);
-    WINDOWINFO desktopInfo;
-    desktopInfo.cbSize = sizeof(desktopInfo);
-    ::GetWindowInfo(::GetDesktopWindow(), &desktopInfo);
-
-    auto x = ((desktopInfo.rcWindow.right - desktopInfo.rcWindow.left) - (winInfo.rcWindow.right - winInfo.rcWindow.left)) / 2;
-    auto y = ((desktopInfo.rcWindow.bottom - desktopInfo.rcWindow.top) - (winInfo.rcWindow.bottom - winInfo.rcWindow.top)) / 2;
-    ::SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-}
-
-static void set_dialog_icon()
-{
-    auto hIcon = LoadImage(g_hInstance, MAKEINTRESOURCE(IDI_RUBIKS_CUBE), IMAGE_ICON,
-        ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON), 0);
-    if (hIcon)
+    if (pThread == nullptr)
     {
-        SendMessage(g_hMainDlg, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hIcon));
-    }
+        CButton startButton(hWndCtl);
+        startButton.EnableWindow(FALSE);
 
-    // Load the 128 x 128 icon for the larger icon displayed during the Alt+Tab 
-    hIcon = LoadImage(g_hInstance, MAKEINTRESOURCE(IDI_RUBIKS_CUBE), IMAGE_ICON, 128, 128, 0);
-    if (hIcon)
-    {
-        SendMessage(g_hMainDlg, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hIcon));
-    }
-}
-
-INT_PTR CALLBACK MainDlgCallback(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    static std::thread *pThread;
-
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        g_hMainDlg = hDlg;
-        SendDlgItemMessage(hDlg, IDC_CUBESTATE_EDIT, EM_SETLIMITTEXT, 24, 0);
-        ::SetDlgItemTextA(hDlg, IDC_CUBESTATE_EDIT, "rrrrbbbbwwwwggggyyyyoooo");
-        center_window(hDlg);
-        set_dialog_icon();
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+        static char cubeState[24 + 1];
+        CEdit cubeStateEdit = GetDlgItem(IDC_CUBESTATE_EDIT);
+        cubeStateEdit.GetWindowTextA(cubeState, sizeof(cubeState));
+        pThread = new std::thread(/*start_wrapper*/[](const char *_cubeState)
         {
-            ::EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        if (LOWORD(wParam) == IDC_START_STOP_BTN)
-        {
-            if (pThread == nullptr)
-            {
-                ::EnableWindow(::GetDlgItem(hDlg, IDC_START_STOP_BTN), FALSE);
-
-                static char cubeState[24 + 1];
-                ::GetDlgItemTextA(hDlg, IDC_CUBESTATE_EDIT, cubeState, sizeof(cubeState));
-                pThread = new std::thread(start_wrapper, cubeState);
-            }
-        }
-        break;
-
-    case THREAD_DONE:
-        pThread->join();
-        delete pThread;
-        pThread = nullptr;
-        ::EnableWindow(::GetDlgItem(hDlg, IDC_START_STOP_BTN), TRUE);
-        break;
+            start(_cubeState);
+            ::PostMessage(g_hMainDlg, WM_THREAD_DONE, 0, 0);
+        }, cubeState);
     }
-
-    return FALSE;
+    return 0;
 }
 
-int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
+LRESULT CMainDlg::OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-    g_hInstance = hInstance;
-    DialogBox(hInstance, MAKEINTRESOURCE(IDD_MAINDLG), nullptr, MainDlgCallback);
+    EndDialog(wID);
+    return 0;
+}
+
+LRESULT CMainDlg::OnThreadDone(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
+{
+    pThread->join();
+    delete pThread;
+    pThread = nullptr;
+    CButton startButton = GetDlgItem(IDC_START_BTN);
+    startButton.EnableWindow();
     return 0;
 }
