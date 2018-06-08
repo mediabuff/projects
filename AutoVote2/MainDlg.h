@@ -45,7 +45,7 @@ public:
         COMMAND_HANDLER(IDC_START_STOP_VOTING, BN_CLICKED, OnBnClickedStartStopVoting)
         COMMAND_ID_HANDLER(IDCANCEL, OnCancel)
         MESSAGE_HANDLER(WM_VOTEREGISTERED, OnVoteRegistered);
-    MSG_WM_SYSCOMMAND(OnSysCommand);
+        MSG_WM_SYSCOMMAND(OnSysCommand);
     END_MSG_MAP()
 
     // Handler prototypes (uncomment arguments if needed):
