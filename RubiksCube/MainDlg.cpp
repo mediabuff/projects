@@ -12,6 +12,8 @@ CWindow CMainDlg::s_MainDlg;
 std::thread *CMainDlg::s_pThread;
 
 /* ---------------------------- Global Variables --------------------------- */
+const char SOLVED_CUBE_STATE[] = "rrrrbbbbwwwwggggyyyyoooo";
+
 /* ------------------------------- Prototypes ------------------------------ */
 extern void start(const char cubeState[]);
 
@@ -42,6 +44,7 @@ void CMainDlg::WriteLine(const char *message)
 BOOL CMainDlg::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 {
     s_MainDlg = *this;
+
     // center the dialog on the screen
     CenterWindow();
 
@@ -55,7 +58,7 @@ BOOL CMainDlg::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
 
     CEdit cubeStateEdit = GetDlgItem(IDC_CUBESTATE_EDIT);
     cubeStateEdit.LimitText(24);
-    cubeStateEdit.SetWindowTextA("rrrrbbbbwwwwggggyyyyoooo");
+    cubeStateEdit.SetWindowTextA(SOLVED_CUBE_STATE);
     return TRUE;
 }
 
