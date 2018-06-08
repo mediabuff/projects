@@ -6,8 +6,7 @@
 #define IDD_MAINDLG                     102
 #define IDC_CUBESTATE_EDIT              1000
 #define IDC_OUTPUT                      1001
-#define IDC_START_STOP_BTN              1002
-#define IDC_STATIC                      -1
+#define IDC_START_BTN                   1002
 
 // Next default values for new objects
 // 
