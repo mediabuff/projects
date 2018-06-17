@@ -4,10 +4,14 @@
 #include <pplawait.h>
 
 //
-// This is set to compile in Debug & Release for x86
-// It uses the cpprest library I got via vcpkg
+// This uses the cpprestsdk from vcpkg
+// 
+// Build/install vcpkg:
+//   https://docs.microsoft.com/en-us/cpp/vcpkg
+//   vcpkg integrate install  ; With this you can use packages 'automatically'
 //
-// To get it to run it needs DLLs from [Repos]\vcpkg\installed\x86-windows\[debug]\bin
+// Build/install the cpprestsdk package:
+// vcpkg install cpprestsdk
 //
 
 using namespace utility;                    // Common utilities like string conversions
