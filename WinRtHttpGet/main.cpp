@@ -40,12 +40,7 @@ IAsyncAction RestGet()
     HttpClient httpClient;
     auto responseStream = co_await httpClient.GetInputStreamAsync(uri);
 
-    // Couldn't find a function to copy the IInputStream to the IOutputStream, here's a hacked version for testing
-    // (could also use httpClient.GetStringAsync() like above)
-    const int maxResponseSize = 65536 * 4;
-    Buffer buffer(maxResponseSize);
-    co_await responseStream.ReadAsync(buffer, maxResponseSize, InputStreamOptions::None);
-    co_await fileOutputStream.WriteAsync(buffer);
+    co_await RandomAccessStream::CopyAsync(responseStream, fileOutputStream);
     co_await fileOutputStream.FlushAsync();
 }
 
